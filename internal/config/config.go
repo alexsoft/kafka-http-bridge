@@ -52,6 +52,12 @@ func Load() (Config, error) {
 	if len(cfg.Brokers) == 0 {
 		return Config{}, fmt.Errorf("KAFKA_BROKERS must not be empty")
 	}
+	if cfg.Port < 1 || cfg.Port > 65535 {
+		return Config{}, fmt.Errorf("BRIDGE_PORT: %d out of range (1-65535)", cfg.Port)
+	}
+	if cfg.ProduceRetries < 0 {
+		return Config{}, fmt.Errorf("KAFKA_PRODUCE_RETRIES: %d must not be negative", cfg.ProduceRetries)
+	}
 	return cfg, nil
 }
 

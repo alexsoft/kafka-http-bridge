@@ -79,6 +79,27 @@ func TestLoadEmptyBrokers(t *testing.T) {
 	}
 }
 
+func TestLoadRangeValidation(t *testing.T) {
+	t.Run("port too low", func(t *testing.T) {
+		t.Setenv("BRIDGE_PORT", "0")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error for port 0")
+		}
+	})
+	t.Run("port too high", func(t *testing.T) {
+		t.Setenv("BRIDGE_PORT", "70000")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error for port 70000")
+		}
+	})
+	t.Run("negative retries", func(t *testing.T) {
+		t.Setenv("KAFKA_PRODUCE_RETRIES", "-1")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error for negative retries")
+		}
+	})
+}
+
 func TestLoadInvalid(t *testing.T) {
 	t.Run("bad port", func(t *testing.T) {
 		t.Setenv("BRIDGE_PORT", "abc")
