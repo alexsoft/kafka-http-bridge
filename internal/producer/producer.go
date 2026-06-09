@@ -1,0 +1,51 @@
+// Package producer wraps a franz-go Kafka client for synchronous, acked produces.
+package producer
+
+import (
+	"context"
+	"time"
+
+	"github.com/twmb/franz-go/pkg/kgo"
+)
+
+// Producer synchronously produces records to Kafka, waiting for ISR acks.
+type Producer struct {
+	client *kgo.Client
+}
+
+// New creates a Producer. retries is the number of retry attempts on
+// retriable errors; timeout bounds how long a record may take to be delivered.
+func New(brokers []string, retries int, timeout time.Duration) (*Producer, error) {
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.RequiredAcks(kgo.AllISRAcks()),
+		kgo.RecordRetries(retries),
+		kgo.RecordDeliveryTimeout(timeout),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &Producer{client: client}, nil
+}
+
+// Produce sends value to topic with the given key (nil key allowed) and waits
+// for the broker acknowledgment, returning the assigned partition and offset.
+func (p *Producer) Produce(ctx context.Context, topic string, key, value []byte) (int32, int64, error) {
+	rec := &kgo.Record{Topic: topic, Key: key, Value: value}
+	results := p.client.ProduceSync(ctx, rec)
+	r, err := results.First()
+	if err != nil {
+		return 0, 0, err
+	}
+	return r.Partition, r.Offset, nil
+}
+
+// Ready reports whether the Kafka cluster is reachable.
+func (p *Producer) Ready(ctx context.Context) error {
+	return p.client.Ping(ctx)
+}
+
+// Close flushes and closes the underlying client.
+func (p *Producer) Close() {
+	p.client.Close()
+}
