@@ -47,6 +47,11 @@ Responses:
 - `502 Bad Gateway` → produce failed after all retries (body includes error
   detail).
 
+**Topics must already exist.** The bridge does not auto-create topics; producing
+to an unknown topic returns `502` (`UNKNOWN_TOPIC_OR_PARTITION`). This is a
+deliberate choice to prevent typos from spawning junk topics — operators
+pre-create topics out of band.
+
 ### `GET /health`
 Liveness. Returns `200` whenever the process is up. No external dependency
 check.
