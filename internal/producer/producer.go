@@ -45,7 +45,8 @@ func (p *Producer) Ready(ctx context.Context) error {
 	return p.client.Ping(ctx)
 }
 
-// Close flushes and closes the underlying client.
+// Close flushes any buffered records and closes the underlying client.
 func (p *Producer) Close() {
+	_ = p.client.Flush(context.Background())
 	p.client.Close()
 }
