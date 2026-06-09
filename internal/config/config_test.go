@@ -33,6 +33,12 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ProduceTimeout != 10*time.Second {
 		t.Errorf("ProduceTimeout = %v, want 10s", cfg.ProduceTimeout)
 	}
+	if cfg.HTTPReadTimeout != 15*time.Second {
+		t.Errorf("HTTPReadTimeout = %v, want 15s", cfg.HTTPReadTimeout)
+	}
+	if cfg.HTTPWriteTimeout != 15*time.Second {
+		t.Errorf("HTTPWriteTimeout = %v, want 15s", cfg.HTTPWriteTimeout)
+	}
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Errorf("ShutdownTimeout = %v, want 10s", cfg.ShutdownTimeout)
 	}
@@ -63,6 +69,13 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.ProduceTimeout != 3*time.Second {
 		t.Errorf("ProduceTimeout = %v", cfg.ProduceTimeout)
+	}
+}
+
+func TestLoadEmptyBrokers(t *testing.T) {
+	t.Setenv("KAFKA_BROKERS", " , , ")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected error for empty brokers list")
 	}
 }
 
