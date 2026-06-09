@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -16,14 +17,18 @@ func TestProduceAndConsume(t *testing.T) {
 	brokers := []string{"localhost:9092"}
 	topic := fmt.Sprintf("bridge-it-%d", time.Now().UnixNano())
 
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// The bridge requires topics to already exist (no auto-creation), so the
+	// test creates the topic up front, mirroring real operational setup.
+	createTopic(ctx, t, brokers, topic)
+
 	p, err := New(brokers, 2, 10*time.Second)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
 	defer p.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 
 	if err := p.Ready(ctx); err != nil {
 		t.Fatalf("Ready: %v", err)
@@ -69,5 +74,23 @@ func TestProduceAndConsume(t *testing.T) {
 	}
 	if string(got.Value) != string(value) {
 		t.Errorf("value = %q, want %q", got.Value, value)
+	}
+}
+
+// createTopic creates a single-partition topic and fails the test on error.
+func createTopic(ctx context.Context, t *testing.T, brokers []string, topic string) {
+	t.Helper()
+	admClient, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("admin client: %v", err)
+	}
+	defer admClient.Close()
+
+	resp, err := kadm.NewClient(admClient).CreateTopics(ctx, 1, 1, nil, topic)
+	if err != nil {
+		t.Fatalf("create topic: %v", err)
+	}
+	if err := resp[topic].Err; err != nil {
+		t.Fatalf("create topic %q: %v", topic, err)
 	}
 }
