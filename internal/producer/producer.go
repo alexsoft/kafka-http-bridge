@@ -45,8 +45,11 @@ func (p *Producer) Ready(ctx context.Context) error {
 	return p.client.Ping(ctx)
 }
 
-// Close flushes any buffered records and closes the underlying client.
+// Close flushes any buffered records and closes the underlying client. The
+// flush is bounded so shutdown cannot hang if the brokers are unreachable.
 func (p *Producer) Close() {
-	_ = p.client.Flush(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = p.client.Flush(ctx)
 	p.client.Close()
 }
