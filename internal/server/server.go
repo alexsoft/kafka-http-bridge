@@ -46,6 +46,8 @@ type errorResponse struct {
 }
 
 func (s *Server) handleProduce(w http.ResponseWriter, r *http.Request) {
+	// Defensive: the {topic} route segment is never empty in practice, but
+	// guard anyway so the handler is safe if called directly or routing changes.
 	topic := r.PathValue("topic")
 	if topic == "" {
 		writeError(w, http.StatusBadRequest, "topic must not be empty")

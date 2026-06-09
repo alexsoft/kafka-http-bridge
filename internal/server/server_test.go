@@ -91,6 +91,8 @@ func TestProduceEmptyTopic(t *testing.T) {
 	fp := &fakeProducer{}
 	srv := newTestServer(fp)
 
+	// The router cannot produce an empty {topic} segment, so call the handler
+	// directly with the path value explicitly set to "" to exercise the guard.
 	req := httptest.NewRequest(http.MethodPost, "/topics//messages", strings.NewReader("x"))
 	req.SetPathValue("topic", "")
 	rec := httptest.NewRecorder()
@@ -122,6 +124,13 @@ func TestHealth(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal body: %v", err)
+	}
+	if body["status"] != "ok" {
+		t.Errorf("body[\"status\"] = %q, want \"ok\"", body["status"])
+	}
 }
 
 func TestReady(t *testing.T) {
@@ -132,6 +141,13 @@ func TestReady(t *testing.T) {
 		srv.Handler().ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		var body map[string]string
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("unmarshal body: %v", err)
+		}
+		if body["status"] != "ready" {
+			t.Errorf("body[\"status\"] = %q, want \"ready\"", body["status"])
 		}
 	})
 	t.Run("not ready", func(t *testing.T) {
