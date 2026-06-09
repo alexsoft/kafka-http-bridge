@@ -1,10 +1,10 @@
 services:
   kafka:
-    image: apache/kafka:3.9.0
+    image: apache/kafka@sha256:f5f8605794dce59d1d566f63667682771c2fec9e96088b0d6a5ef0f8476dd4b2 # 3.9.2
     ports:
       - "9092:9092"
   ui:
-    image: ghcr.io/kafbat/kafka-ui
+    image: ghcr.io/kafbat/kafka-ui@sha256:7cda86a33344160309fdb65146332e4da65db81a945614f2fe32e210803f6fd1 # v1.5.0
     ports:
       - "8080:8080"
     depends_on:
