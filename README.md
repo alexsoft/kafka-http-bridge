@@ -44,7 +44,7 @@ fast exit at startup with a clear error.
 
 ```bash
 docker compose up -d kafka       # start Kafka (the Kafbat UI also uses 8080)
-BRIDGE_PORT=8090 go run .         # 8090 avoids colliding with the UI on 8080
+BRIDGE_PORT=8090 go run ./cmd/app # 8090 avoids colliding with the UI on 8080
 
 # create a topic (the bridge does not auto-create)
 docker compose exec kafka /opt/kafka/bin/kafka-topics.sh \
