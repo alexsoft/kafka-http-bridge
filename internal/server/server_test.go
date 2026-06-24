@@ -34,7 +34,7 @@ func (f *fakeProducer) Produce(ctx context.Context, topic string, key, value []b
 func (f *fakeProducer) Ready(ctx context.Context) error { return f.readyErr }
 
 func newTestServer(p Producer) *Server {
-	return New(p, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return New(p, slog.New(slog.NewTextHandler(io.Discard, nil)), 1<<20)
 }
 
 func TestProduceSuccess(t *testing.T) {
@@ -113,6 +113,22 @@ func TestProduceProducerError(t *testing.T) {
 
 	if rec.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d, want 502", rec.Code)
+	}
+}
+
+func TestProduceBodyTooLarge(t *testing.T) {
+	fp := &fakeProducer{}
+	srv := New(fp, slog.New(slog.NewTextHandler(io.Discard, nil)), 10)
+
+	req := httptest.NewRequest(http.MethodPost, "/topics/orders/messages", strings.NewReader("this body is definitely longer than ten bytes"))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413; body=%s", rec.Code, rec.Body.String())
+	}
+	if fp.gotValue != nil {
+		t.Errorf("producer was called with %q, want no produce on oversized body", fp.gotValue)
 	}
 }
 

@@ -19,6 +19,7 @@ type Config struct {
 	HTTPReadTimeout  time.Duration
 	HTTPWriteTimeout time.Duration
 	ShutdownTimeout  time.Duration
+	MaxBodyBytes     int64
 }
 
 // Load reads configuration from environment variables, applying defaults
@@ -48,6 +49,12 @@ func Load() (Config, error) {
 	if cfg.ShutdownTimeout, err = getEnvDur("SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
 		return Config{}, err
 	}
+	// Default mirrors Kafka's default max.message.bytes (1 MiB). Raising this
+	// requires raising the broker/topic max.message.bytes and franz-go's
+	// ProducerBatchMaxBytes in step, or requests pass here and fail at produce.
+	if cfg.MaxBodyBytes, err = getEnvInt64("BRIDGE_MAX_BODY_BYTES", 1<<20); err != nil {
+		return Config{}, err
+	}
 
 	if len(cfg.Brokers) == 0 {
 		return Config{}, fmt.Errorf("KAFKA_BROKERS must not be empty")
@@ -57,6 +64,9 @@ func Load() (Config, error) {
 	}
 	if cfg.ProduceRetries < 0 {
 		return Config{}, fmt.Errorf("KAFKA_PRODUCE_RETRIES: %d must not be negative", cfg.ProduceRetries)
+	}
+	if cfg.MaxBodyBytes < 1 {
+		return Config{}, fmt.Errorf("BRIDGE_MAX_BODY_BYTES: %d must be positive", cfg.MaxBodyBytes)
 	}
 	return cfg, nil
 }
@@ -89,6 +99,18 @@ func getEnvInt(key string, def int) (int, error) {
 		return def, nil
 	}
 	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, fmt.Errorf("%s: invalid integer %q: %w", key, v, err)
+	}
+	return n, nil
+}
+
+func getEnvInt64(key string, def int64) (int64, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return def, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("%s: invalid integer %q: %w", key, v, err)
 	}

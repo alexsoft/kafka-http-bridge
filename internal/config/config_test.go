@@ -42,6 +42,28 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Errorf("ShutdownTimeout = %v, want 10s", cfg.ShutdownTimeout)
 	}
+	if cfg.MaxBodyBytes != 1<<20 {
+		t.Errorf("MaxBodyBytes = %d, want %d", cfg.MaxBodyBytes, 1<<20)
+	}
+}
+
+func TestLoadMaxBodyBytes(t *testing.T) {
+	t.Run("override", func(t *testing.T) {
+		t.Setenv("BRIDGE_MAX_BODY_BYTES", "2048")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.MaxBodyBytes != 2048 {
+			t.Errorf("MaxBodyBytes = %d, want 2048", cfg.MaxBodyBytes)
+		}
+	})
+	t.Run("not positive", func(t *testing.T) {
+		t.Setenv("BRIDGE_MAX_BODY_BYTES", "0")
+		if _, err := Load(); err == nil {
+			t.Fatal("expected error for non-positive max body bytes")
+		}
+	})
 }
 
 func TestLoadOverrides(t *testing.T) {

@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,13 +18,15 @@ type Producer interface {
 
 // Server holds dependencies for the HTTP handlers.
 type Server struct {
-	producer Producer
-	logger   *slog.Logger
+	producer     Producer
+	logger       *slog.Logger
+	maxBodyBytes int64
 }
 
-// New constructs a Server.
-func New(p Producer, logger *slog.Logger) *Server {
-	return &Server{producer: p, logger: logger}
+// New constructs a Server. maxBodyBytes caps the request body size; larger
+// requests are rejected with 413 before anything is sent to Kafka.
+func New(p Producer, logger *slog.Logger, maxBodyBytes int64) *Server {
+	return &Server{producer: p, logger: logger, maxBodyBytes: maxBodyBytes}
 }
 
 // Handler returns the configured HTTP router.
@@ -54,8 +57,14 @@ func (s *Server) handleProduce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, s.maxBodyBytes)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body exceeds limit")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "failed to read request body")
 		return
 	}

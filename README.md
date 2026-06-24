@@ -13,6 +13,7 @@ to Kafka as-is. Produces wait for acknowledgment from all in-sync replicas
   partitioner chooses the partition).
 - `200` → `{"topic","partition","offset"}` once acked by all in-sync replicas.
 - `400` → empty topic or unreadable body.
+- `413` → request body exceeds `BRIDGE_MAX_BODY_BYTES`.
 - `502` → produce failed after retries.
 
 > **Topics must already exist.** The bridge does not auto-create topics —
@@ -36,6 +37,11 @@ Readiness — `200` `{"status":"ready"}` if Kafka is reachable, else `503`.
 | `HTTP_READ_TIMEOUT` | `15s` | server read timeout |
 | `HTTP_WRITE_TIMEOUT` | `15s` | server write timeout |
 | `SHUTDOWN_TIMEOUT` | `10s` | graceful drain on SIGINT/SIGTERM |
+| `BRIDGE_MAX_BODY_BYTES` | `1048576` (1 MiB) | max request body; larger → `413` |
+
+> **Raising `BRIDGE_MAX_BODY_BYTES`** above ~1 MiB requires raising the
+> broker/topic `max.message.bytes` (and franz-go's batch limit) in step —
+> otherwise oversized requests pass the HTTP check and fail at produce time.
 
 Invalid values (bad port range, unparseable durations, empty brokers) cause a
 fast exit at startup with a clear error.

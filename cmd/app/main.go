@@ -32,7 +32,7 @@ func main() {
 	}
 	defer prod.Close()
 
-	srv := server.New(prod, logger)
+	srv := server.New(prod, logger, cfg.MaxBodyBytes)
 	httpServer := &http.Server{
 		Addr:         net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),
 		Handler:      srv.Handler(),
