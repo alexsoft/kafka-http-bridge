@@ -5,6 +5,8 @@ package producer
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -24,7 +26,7 @@ func TestProduceAndConsume(t *testing.T) {
 	// test creates the topic up front, mirroring real operational setup.
 	createTopic(ctx, t, brokers, topic, 1)
 
-	p, err := New(brokers, 2, 10*time.Second)
+	p, err := New(brokers, 2, 10*time.Second, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -92,7 +94,7 @@ func TestKeylessRecordsSpreadAcrossPartitions(t *testing.T) {
 	const partitions = 3
 	createTopic(ctx, t, brokers, topic, partitions)
 
-	p, err := New(brokers, 2, 10*time.Second)
+	p, err := New(brokers, 2, 10*time.Second, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

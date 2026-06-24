@@ -25,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	prod, err := producer.New(cfg.Brokers, cfg.ProduceRetries, cfg.ProduceTimeout)
+	prod, err := producer.New(cfg.Brokers, cfg.ProduceRetries, cfg.ProduceTimeout, logger)
 	if err != nil {
 		logger.Error("failed to create producer", "err", err)
 		os.Exit(1)

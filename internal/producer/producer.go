@@ -3,6 +3,7 @@ package producer
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -15,11 +16,14 @@ type Producer struct {
 
 // New creates a Producer. retries is the number of retry attempts on
 // retriable errors; timeout bounds how long a record may take to be delivered.
-func New(brokers []string, retries int, timeout time.Duration) (*Producer, error) {
+// logger receives the client's internal diagnostics.
+func New(brokers []string, retries int, timeout time.Duration, logger *slog.Logger) (*Producer, error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		// Identify the bridge in broker logs, quotas, and metrics.
 		kgo.ClientID("kafka-http-bridge"),
+		// Route the client's broker/connection/retry diagnostics into slog.
+		kgo.WithLogger(newKgoLogger(logger)),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.RecordRetries(retries),
 		kgo.RecordDeliveryTimeout(timeout),
