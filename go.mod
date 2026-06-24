@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/twmb/franz-go v1.21.3
 	github.com/twmb/franz-go/pkg/kadm v1.18.0
+	github.com/twmb/franz-go/plugin/kslog v1.0.0
 )
 
 require (

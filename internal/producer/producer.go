@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kslog"
 )
 
 // Producer synchronously produces records to Kafka, waiting for ISR acks.
@@ -23,7 +24,7 @@ func New(brokers []string, retries int, timeout time.Duration, logger *slog.Logg
 		// Identify the bridge in broker logs, quotas, and metrics.
 		kgo.ClientID("kafka-http-bridge"),
 		// Route the client's broker/connection/retry diagnostics into slog.
-		kgo.WithLogger(newKgoLogger(logger)),
+		kgo.WithLogger(kslog.New(logger)),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.RecordRetries(retries),
 		kgo.RecordDeliveryTimeout(timeout),
