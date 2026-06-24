@@ -18,6 +18,8 @@ type Producer struct {
 func New(brokers []string, retries int, timeout time.Duration) (*Producer, error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
+		// Identify the bridge in broker logs, quotas, and metrics.
+		kgo.ClientID("kafka-http-bridge"),
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.RecordRetries(retries),
 		kgo.RecordDeliveryTimeout(timeout),
