@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/twmb/franz-go/pkg/kerr"
 )
 
 // fakeProducer is a test double for the Producer interface.
@@ -129,6 +131,30 @@ func TestProduceBodyTooLarge(t *testing.T) {
 	}
 	if fp.gotValue != nil {
 		t.Errorf("producer was called with %q, want no produce on oversized body", fp.gotValue)
+	}
+}
+
+func TestProduceErrorMapping(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+	}{
+		{"unknown topic", kerr.UnknownTopicOrPartition, http.StatusNotFound},
+		{"message too large", kerr.MessageTooLarge, http.StatusRequestEntityTooLarge},
+		{"deadline exceeded", context.DeadlineExceeded, http.StatusGatewayTimeout},
+		{"generic failure", errors.New("broker down"), http.StatusBadGateway},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newTestServer(&fakeProducer{produceErr: tc.err})
+			req := httptest.NewRequest(http.MethodPost, "/topics/orders/messages", strings.NewReader("x"))
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != tc.wantCode {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, tc.wantCode, rec.Body.String())
+			}
+		})
 	}
 }
 

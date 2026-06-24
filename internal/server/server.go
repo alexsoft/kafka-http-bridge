@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+
+	"github.com/twmb/franz-go/pkg/kerr"
 )
 
 // Producer is the subset of Kafka behavior the HTTP layer depends on.
@@ -77,11 +79,29 @@ func (s *Server) handleProduce(w http.ResponseWriter, r *http.Request) {
 	partition, offset, err := s.producer.Produce(r.Context(), topic, key, body)
 	if err != nil {
 		s.logger.Error("produce failed", "topic", topic, "err", err)
-		writeError(w, http.StatusBadGateway, "failed to produce message: "+err.Error())
+		status, msg := produceErrorStatus(err)
+		writeError(w, status, msg)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, produceResponse{Topic: topic, Partition: partition, Offset: offset})
+}
+
+// produceErrorStatus maps a produce failure to an HTTP status and message so
+// client mistakes (typo'd topic, oversized message) are distinguishable from a
+// genuinely unavailable cluster. The message keeps the underlying detail to aid
+// debugging on this internal service.
+func produceErrorStatus(err error) (int, string) {
+	switch {
+	case errors.Is(err, kerr.UnknownTopicOrPartition):
+		return http.StatusNotFound, "unknown topic or partition: " + err.Error()
+	case errors.Is(err, kerr.MessageTooLarge):
+		return http.StatusRequestEntityTooLarge, "message too large: " + err.Error()
+	case errors.Is(err, context.DeadlineExceeded):
+		return http.StatusGatewayTimeout, "produce timed out: " + err.Error()
+	default:
+		return http.StatusBadGateway, "failed to produce message: " + err.Error()
+	}
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

@@ -13,11 +13,14 @@ to Kafka as-is. Produces wait for acknowledgment from all in-sync replicas
   partitioner chooses the partition).
 - `200` → `{"topic","partition","offset"}` once acked by all in-sync replicas.
 - `400` → empty topic or unreadable body.
-- `413` → request body exceeds `BRIDGE_MAX_BODY_BYTES`.
-- `502` → produce failed after retries.
+- `404` → unknown topic or partition (the bridge does not auto-create topics).
+- `413` → request body exceeds `BRIDGE_MAX_BODY_BYTES`, or Kafka rejects the
+  message as too large.
+- `502` → produce failed after retries (e.g. cluster unreachable).
+- `504` → produce exceeded `KAFKA_PRODUCE_TIMEOUT`.
 
 > **Topics must already exist.** The bridge does not auto-create topics —
-> producing to an unknown topic returns `502`. Create topics out of band first.
+> producing to an unknown topic returns `404`. Create topics out of band first.
 
 ### `GET /health`
 Liveness — `200` `{"status":"ok"}` while the process runs.
