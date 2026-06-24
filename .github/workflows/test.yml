@@ -32,19 +32,11 @@ jobs:
         run: go test -race ./...
 
       - name: Start Kafka
-        run: docker compose -f compose.ci.yaml up -d kafka
-
-      - name: Wait for Kafka to be ready
-        run: |
-          for i in $(seq 1 30); do
-            if nc -z localhost 9092; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Kafka did not become ready in time" >&2
-          docker compose -f compose.ci.yaml logs kafka
-          exit 1
+        run: docker compose -f compose.ci.yaml up -d --wait kafka
 
       - name: Run integration tests
         run: go test -race -tags=integration ./internal/producer/
+
+      - name: Dump Kafka logs on failure
+        if: failure()
+        run: docker compose -f compose.ci.yaml logs kafka
