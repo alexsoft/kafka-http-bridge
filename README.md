@@ -22,6 +22,12 @@ to Kafka as-is. Produces wait for acknowledgment from all in-sync replicas
 > **Topics must already exist.** The bridge does not auto-create topics —
 > producing to an unknown topic returns `404`. Create topics out of band first.
 
+> **Delivery is at-least-once.** The client uses idempotent produce, so
+> broker-side retries do not duplicate a record. The HTTP boundary is weaker:
+> a client that times out and retries its `POST`, or a request canceled
+> mid-produce, can still result in a duplicate (or a record that lands after
+> the client gave up). Consumers should be idempotent / dedupe on a key.
+
 ### `GET /health`
 Liveness — `200` `{"status":"ok"}` while the process runs.
 
@@ -52,28 +58,34 @@ fast exit at startup with a clear error.
 ## Running locally
 
 ```bash
-docker compose up -d kafka       # start Kafka (the Kafbat UI also uses 8080)
-BRIDGE_PORT=8090 go run ./cmd/app # 8090 avoids colliding with the UI on 8080
+docker compose up -d kafka1 kafka2 kafka3   # start the 3-broker cluster (UI also uses 8080)
+BRIDGE_PORT=8090 go run ./cmd/app           # 8090 avoids colliding with the UI on 8080
 
-# create a topic (the bridge does not auto-create)
-docker compose exec kafka /opt/kafka/bin/kafka-topics.sh \
-  --bootstrap-server localhost:9092 --create --topic demo \
-  --partitions 1 --replication-factor 1
+# create a topic (the bridge does not auto-create); kafka1:19091 is the
+# in-network listener, reachable from inside any broker container.
+docker compose exec kafka1 /opt/kafka/bin/kafka-topics.sh \
+  --bootstrap-server kafka1:19091 --create --topic demo \
+  --partitions 3 --replication-factor 3
 
 curl -X POST localhost:8090/topics/demo/messages \
   -H 'X-Kafka-Key: k1' --data-raw 'hello world'
 # → {"topic":"demo","partition":0,"offset":0}
 ```
 
-The full compose stack also starts the Kafbat UI at http://localhost:8080.
+`docker compose up -d` (no args) also starts the Kafbat UI at
+http://localhost:8080. The bridge's default `localhost:9092` reaches the
+`kafka2` host listener.
 
 ## Testing
 
 ```bash
-go test ./...                                     # unit tests (fast, no deps)
-docker compose up -d kafka
-go test -tags=integration ./internal/producer/    # integration test (live Kafka)
+go test ./...                                       # unit tests (fast, no deps)
+docker compose up -d kafka1 kafka2 kafka3
+go test -tags=integration ./internal/producer/      # integration test (live Kafka)
 ```
+
+CI runs the integration test against `compose.ci.yaml` — a single-broker
+stack (service `kafka`) that comes up faster than the 3-broker dev cluster.
 
 The integration test creates its own topic, produces a message, and consumes it
 back to verify the key and value round-trip.
