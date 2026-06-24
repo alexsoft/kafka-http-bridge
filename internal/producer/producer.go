@@ -21,6 +21,12 @@ func New(brokers []string, retries int, timeout time.Duration) (*Producer, error
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.RecordRetries(retries),
 		kgo.RecordDeliveryTimeout(timeout),
+		// Hash keyed records (murmur2, Kafka-compatible) so a given key is
+		// ordered on one partition, but spread keyless records across all
+		// partitions. The default StickyKeyPartitioner pins keyless records to
+		// a single partition under this bridge's synchronous one-record-per-
+		// batch pattern; a low byte threshold forces a fresh pick per record.
+		kgo.RecordPartitioner(kgo.UniformBytesPartitioner(1, false, true, nil)),
 	)
 	if err != nil {
 		return nil, err
