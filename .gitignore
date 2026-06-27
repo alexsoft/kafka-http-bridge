@@ -23,3 +23,9 @@ go.work.sum
 
 # env file
 .env
+
+# local implementation plans
+docs/superpowers/plans/
+
+# local review notes
+REVIEW.md
