@@ -99,6 +99,30 @@ empty broker list) fail fast at startup with a descriptive error.
 > broker/topic `max.message.bytes` *and* franz-go's batch limit in step —
 > otherwise oversized requests pass the HTTP check and fail at produce time.
 
+## Deployment
+
+Local `docker compose` is for development and tests. In production the bridge
+runs near your Kafka cluster — point `KAFKA_BROKERS` at brokers reachable from
+wherever the bridge runs (see [Configuration](#configuration) for all vars).
+
+**Run the published image** (built and pushed to GHCR on each version tag):
+
+```bash
+docker run -p 8080:8080 \
+  -e KAFKA_BROKERS=kafka.prod.internal:9092 \
+  ghcr.io/alexsoft/kafka-http-bridge:1.2.3
+```
+
+Image tags: `1.2.3` (a release), `1.2` (latest patch of that minor),
+`sha-<commit>` (exact build), `latest` (newest release).
+
+**Or build from source:**
+
+```bash
+go build -o kafka-http-bridge ./cmd/app
+KAFKA_BROKERS=kafka.prod.internal:9092 ./kafka-http-bridge
+```
+
 ## How it's built
 
 Wiring lives in [`cmd/app/main.go`](cmd/app/main.go):
