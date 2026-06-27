@@ -40,3 +40,17 @@ jobs:
       - name: Dump Kafka logs on failure
         if: failure()
         run: docker compose -f compose.ci.yaml logs kafka
+
+  docker-build:
+    name: Smoke-build Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build prod image
+        run: docker build --target prod .
