@@ -1,4 +1,4 @@
-# kafka-http-bridge
+# Kafka HTTP Bridge
 
 Produce to Kafka over plain HTTP. `POST` a body to a topic URL; the bridge
 forwards the body to Kafka **verbatim**, waits for an all-ISR ack (`acks=all`),
@@ -197,4 +197,3 @@ conventional-ish commits (`feat:`, `fix:`, `test:`, `docs:`).
 
 - [CLAUDE.md](CLAUDE.md) — orientation for AI assistants working in the repo.
 - `docs/superpowers/specs/` — the approved design and the *why* behind decisions.
-- `docs/superpowers/plans/` — the task-by-task implementation plan.
