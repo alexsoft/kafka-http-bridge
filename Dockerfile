@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine@sha256:3ad57304ad93bbec8548a0437ad9e06a455660655d9af011d58b993f6f615648 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine@sha256:3ad57304ad93bbec8548a0437ad9e06a455660655d9af011d58b993f6f615648 AS builder
 
 WORKDIR /build
 
@@ -7,7 +7,11 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/kafka-http-bridge ./cmd/app
+# Cross-compile natively instead of emulating TARGETARCH: the builder always
+# runs as BUILDPLATFORM, and GOOS/GOARCH steer the (CGO-free) Go toolchain.
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-s -w" -o bin/kafka-http-bridge ./cmd/app
 
 # Production stage
 FROM scratch AS prod
