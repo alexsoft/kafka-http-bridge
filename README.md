@@ -110,11 +110,11 @@ wherever the bridge runs (see [Configuration](#configuration) for all vars).
 ```bash
 docker run -p 8080:8080 \
   -e KAFKA_BROKERS=kafka.prod.internal:9092 \
-  ghcr.io/alexsoft/kafka-http-bridge:1.2.3
+  ghcr.io/alexsoft/kafka-http-bridge:1.0.2
 ```
 
-Image tags: `1.2.3` (a release), `1.2` (latest patch of that minor),
-`sha-<commit>` (exact build), `latest` (newest release).
+Image tags: `1.0.2` (a release), `1.0` (latest patch of that minor),
+`sha-<commit>` (exact build).
 
 **Or build from source:**
 
