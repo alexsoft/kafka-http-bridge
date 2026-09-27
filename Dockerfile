@@ -20,9 +20,11 @@ LABEL org.opencontainers.image.source=https://github.com/alexsoft/kafka-http-bri
 
 WORKDIR /
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /build/bin/kafka-http-bridge /kafka-http-bridge
+COPY --link --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --link --from=builder /build/bin/kafka-http-bridge /kafka-http-bridge
 
 USER 65532:65532
+
+EXPOSE 8080
 
 ENTRYPOINT ["/kafka-http-bridge"]
