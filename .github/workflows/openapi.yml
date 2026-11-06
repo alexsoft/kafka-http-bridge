@@ -30,8 +30,12 @@ jobs:
           persist-credentials: false
 
       - name: Run vacuum
-        # Fail on warnings too: the spec currently lints clean, keep it that way.
-        run: >-
-          docker run --rm -v "$PWD:/work:ro"
-          dshanley/vacuum:v0.39.1@sha256:de133f6f552fde3a4f3d3fb41f3ef80690d8cfb2051913a4f870ccc11addcf45
-          lint --details --no-banner --fail-severity warn /work/openapi.yaml
+        uses: pb33f/vacuum-action@17241a8b411dc26c1832fa9881c4c6345e39b760 # v2.1.0
+        with:
+          openapi_path: openapi.yaml
+          # Any warning drops the score below 100, so this fails on warnings
+          # too: the spec currently lints clean, keep it that way.
+          minimum_score: 100
+          step_summary: true
+          # The action runs dshanley/vacuum:<this>; pin tag and digest.
+          vacuum_version: v0.39.1@sha256:de133f6f552fde3a4f3d3fb41f3ef80690d8cfb2051913a4f870ccc11addcf45
