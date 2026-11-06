@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: Kafka HTTP Bridge
+  version: 1.0.3
+  summary: Produce to Kafka over plain HTTP.
+  description: |
+    `POST` a body to a topic URL; the bridge forwards the body to Kafka
+    **verbatim**, waits for an all-ISR ack (`acks=all`), and returns the
+    partition and offset it landed on. The HTTP status reflects the real
+    produce result — no fire-and-forget.
+
+    One HTTP request → one Kafka record, synchronously acked. No auth, no
+    batching, no header → record-header mapping.
+
+    **Topics are never auto-created** — producing to an unknown topic is a
+    `404`. **Delivery is at-least-once**: a client that times out and retries
+    can create a duplicate record, so consumers should dedupe.
+  license:
+    name: See LICENSE
+    url: https://github.com/alexsoft/kafka-http-bridge/blob/main/LICENSE
+servers:
+  - url: http://localhost:8080
+    description: Default listen address (`BRIDGE_HOST`/`BRIDGE_PORT`)
+tags:
+  - name: produce
+    description: Write records to Kafka
+  - name: probes
+    description: Liveness and readiness checks
+paths:
+  /topics/{topic}/messages:
+    post:
+      tags: [produce]
+      operationId: produceMessage
+      summary: Produce one record to a topic
+      description: |
+        Sends the request body unchanged as the record value and blocks until
+        all in-sync replicas ack. The body is capped at
+        `BRIDGE_MAX_BODY_BYTES` (default 1 MiB) before anything reaches Kafka.
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          description: |
+            Target Kafka topic. Must already exist. The bridge does not
+            validate the name; Kafka's rules apply (`[a-zA-Z0-9._-]`, max 249
+            chars) and an invalid name surfaces as a produce failure.
+          schema:
+            type: string
+            minLength: 1
+          example: orders
+        - name: X-Kafka-Key
+          in: header
+          required: false
+          description: |
+            Record key, sent as its UTF-8 bytes. Absent or empty → nil key and
+            the partitioner spreads records; present → murmur2 hash, so the
+            same key always lands on the same partition (per-key ordering).
+          schema:
+            type: string
+          example: customer-42
+      requestBody:
+        required: false
+        description: |
+          Record value, forwarded byte-for-byte. Any content type is accepted;
+          `Content-Type` is not inspected or forwarded. An empty body produces
+          a record with an empty value.
+        content:
+          '*/*':
+            schema:
+              type: string
+              format: binary
+            examples:
+              json:
+                value: '{"id": 99, "total": 12.50}'
+              text:
+                value: hello world
+      responses:
+        '200':
+          description: Acked by all in-sync replicas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProduceResponse'
+              example:
+                topic: orders
+                partition: 1
+                offset: 847
+        '400':
+          description: The request body could not be read (or the topic was empty).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: failed to read request body
+        '404':
+          description: Unknown topic or partition. Topics are never auto-created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 'unknown topic or partition: UNKNOWN_TOPIC_OR_PARTITION: This server does not host this topic-partition.'
+        '413':
+          description: |
+            Body exceeds `BRIDGE_MAX_BODY_BYTES`, or Kafka rejected the record
+            as larger than the topic's `max.message.bytes`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                httpLimit:
+                  summary: Rejected by the bridge before produce
+                  value:
+                    error: request body exceeds limit
+                kafkaLimit:
+                  summary: Rejected by Kafka
+                  value:
+                    error: 'message too large: MESSAGE_TOO_LARGE: The request included a message larger than the max message size the server will accept.'
+        '502':
+          description: |
+            Produce failed after retries (`KAFKA_PRODUCE_RETRIES`), e.g. the
+            cluster is unreachable. The record may or may not have been written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 'failed to produce message: unable to dial: dial tcp 127.0.0.1:9092: connect: connection refused'
+        '504':
+          description: |
+            Produce exceeded `KAFKA_PRODUCE_TIMEOUT` (default 10s). The record
+            may still land after this response — retrying can duplicate it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 'produce timed out: context deadline exceeded'
+  /health:
+    get:
+      tags: [probes]
+      operationId: health
+      summary: Liveness probe
+      description: Returns 200 while the process is running. Never touches Kafka.
+      responses:
+        '200':
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+              example:
+                status: ok
+  /ready:
+    get:
+      tags: [probes]
+      operationId: ready
+      summary: Readiness probe
+      description: Pings the Kafka cluster. Wire this to your orchestrator's readiness probe.
+      responses:
+        '200':
+          description: Kafka cluster is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+              example:
+                status: ready
+        '503':
+          description: Kafka cluster is not reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: 'kafka not ready: unable to dial: dial tcp 127.0.0.1:9092: connect: connection refused'
+components:
+  schemas:
+    ProduceResponse:
+      type: object
+      description: Where the acked record landed in Kafka.
+      required: [topic, partition, offset]
+      properties:
+        topic:
+          type: string
+          description: Topic the record was written to.
+          examples: [orders]
+        partition:
+          type: integer
+          format: int32
+          description: Partition the record landed on.
+          examples: [1]
+        offset:
+          type: integer
+          format: int64
+          description: Offset of the record within the partition.
+          examples: [847]
+      examples:
+        - topic: orders
+          partition: 1
+          offset: 847
+    Status:
+      type: object
+      description: Probe result returned by `/health` and `/ready` on success.
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: '`ok` from `/health`, `ready` from `/ready`.'
+          enum: [ok, ready]
+          examples: [ok]
+      examples:
+        - status: ok
+    Error:
+      type: object
+      description: Error body returned for every non-2xx response.
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: |
+            Human-readable message. Includes the underlying broker detail to
+            aid debugging; do not expose verbatim to untrusted callers.
+          examples: [request body exceeds limit]
+      examples:
+        - error: request body exceeds limit

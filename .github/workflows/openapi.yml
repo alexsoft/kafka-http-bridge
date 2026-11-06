@@ -1,0 +1,41 @@
+name: OpenAPI lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'openapi.yaml'
+      - '.github/workflows/openapi.yml'
+  pull_request:
+    paths:
+      - 'openapi.yaml'
+      - '.github/workflows/openapi.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vacuum:
+    name: Lint OpenAPI spec with vacuum
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run vacuum
+        uses: pb33f/vacuum-action@17241a8b411dc26c1832fa9881c4c6345e39b760 # v2.1.0
+        with:
+          openapi_path: openapi.yaml
+          # Any warning drops the score below 100, so this fails on warnings
+          # too: the spec currently lints clean, keep it that way.
+          minimum_score: 100
+          step_summary: true
+          # The action runs dshanley/vacuum:<this>; pin tag and digest.
+          vacuum_version: v0.39.1@sha256:de133f6f552fde3a4f3d3fb41f3ef80690d8cfb2051913a4f870ccc11addcf45
