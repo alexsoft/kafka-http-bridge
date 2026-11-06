@@ -1,0 +1,37 @@
+name: OpenAPI lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'openapi.yaml'
+      - '.github/workflows/openapi.yml'
+  pull_request:
+    paths:
+      - 'openapi.yaml'
+      - '.github/workflows/openapi.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vacuum:
+    name: Lint OpenAPI spec with vacuum
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run vacuum
+        # Fail on warnings too: the spec currently lints clean, keep it that way.
+        run: >-
+          docker run --rm -v "$PWD:/work:ro"
+          dshanley/vacuum:v0.39.1@sha256:de133f6f552fde3a4f3d3fb41f3ef80690d8cfb2051913a4f870ccc11addcf45
+          lint --details --no-banner --fail-severity warn /work/openapi.yaml
