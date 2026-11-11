@@ -43,6 +43,8 @@ curl -X POST localhost:8090/topics/demo/messages \
 
 ## API
 
+Machine-readable spec: [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1).
+
 ### `POST /topics/{topic}/messages`
 
 | | |
