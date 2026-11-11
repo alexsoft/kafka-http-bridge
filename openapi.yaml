@@ -19,8 +19,8 @@ info:
     name: See LICENSE
     url: https://github.com/alexsoft/kafka-http-bridge/blob/main/LICENSE
 servers:
-  - url: http://localhost:8080
-    description: Default listen address (`BRIDGE_HOST`/`BRIDGE_PORT`)
+  - url: /
+    description: Same origin the spec is served from
 tags:
   - name: produce
     description: Write records to Kafka
